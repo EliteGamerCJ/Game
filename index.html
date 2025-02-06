@@ -98,6 +98,7 @@
                     player.y + player.height > coin.y) {
                     coins.splice(index, 1);
                     player.score += 10;
+                    player.jumps = 0; // Recharge double jump
                 }
             });
         }
