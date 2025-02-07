@@ -13,10 +13,19 @@
             display: block;
             background: #87CEEB;
         }
+        #leaderboard {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <div id="leaderboard"></div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -174,6 +183,7 @@
             coins.push({ x: 150, y: canvas.height - 150, width: 20, height: 20 });
             coins.push({ x: 450, y: canvas.height - 250, width: 20, height: 20 });
             coins.push({ x: 750, y: canvas.height - 350, width: 20, height: 20 });
+            leaderboard.submitScore('Player', player.score); // Update leaderboard with player score
         }
 
         document.addEventListener('keydown', (e) => {
@@ -213,5 +223,6 @@
 
         gameLoop();
     </script>
+    <script src="leaderboard.js"></script>
 </body>
 </html>
