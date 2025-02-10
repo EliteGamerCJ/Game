@@ -116,6 +116,24 @@
             if (player.grounded && player.dx === 0) {
                 player.animation = "idle";
             }
+
+            // Handle side scrolling
+            if (player.x > canvas.width / 2) {
+                canvas.scrollLeft = player.x - canvas.width / 2;
+            } else {
+                canvas.scrollLeft = 0;
+            }
+
+            // Handle coin collection
+            coins.forEach((coin, index) => {
+                if (player.x < coin.x + coin.width &&
+                    player.x + player.width > coin.x &&
+                    player.y < coin.y + coin.height &&
+                    player.y + player.height > coin.y) {
+                    coins.splice(index, 1);
+                    player.score += 10;
+                }
+            });
         }
 
         document.addEventListener('keydown', (e) => {
