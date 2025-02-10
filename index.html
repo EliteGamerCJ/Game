@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"></html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,26 +24,43 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        const spriteSheet = new Image();
+        spriteSheet.src = "robot-sprites.png"; // Change this to your sprite filename
+
+        const FRAME_WIDTH = 64;  // Each frame width
+        const FRAME_HEIGHT = 64; // Each frame height
+
         const player = {
             x: 50,
             y: canvas.height - 150,
-            width: 50,
-            height: 50,
-            color: 'red',
-            dy: 0,
+            width: 64,  // Adjusted to sprite size
+            height: 64,
             dx: 0,
+            dy: 0,
             speed: 5,
             gravity: 0.5,
             jumpPower: -10,
             jumps: 0,
             maxJumps: 2,
-            score: 0
+            score: 0,
+            grounded: true,
+            animation: "idle",
+            frameIndex: 0,
+            frameCount: 4, // Default frame count for idle animation
+            tickCount: 0
+        };
+
+        // Animation Frames for Different Actions
+        const animations = {
+            idle: { startY: 0, frames: 4 },
+            run: { startY: 64, frames: 6 },
+            jump: { startY: 128, frames: 2 }
         };
 
         const platforms = [
-            { x: 100, y: canvas.height - 100, width: 200, height: 20, dx: 2 },
-            { x: 400, y: canvas.height - 200, width: 200, height: 20, dx: -2 },
-            { x: 700, y: canvas.height - 300, width: 200, height: 20, dx: 1 }
+            { x: 100, y: canvas.height - 100, width: 200, height: 20 },
+            { x: 400, y: canvas.height - 200, width: 200, height: 20 },
+            { x: 700, y: canvas.height - 300, width: 200, height: 20 }
         ];
 
         const coins = [
@@ -53,9 +70,78 @@
         ];
 
         function drawPlayer() {
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+            let anim = animations[player.animation];
+
+            // Update animation frame
+            player.tickCount++;
+            if (player.tickCount > 10) {  // Adjust speed of animation
+                player.tickCount = 0;
+                player.frameIndex = (player.frameIndex + 1) % anim.frames;
+            }
+
+            ctx.drawImage(
+                spriteSheet,
+                player.frameIndex * FRAME_WIDTH, anim.startY,  // Source X, Y
+                FRAME_WIDTH, FRAME_HEIGHT,                    // Source Width, Height
+                player.x, player.y,                           // Destination X, Y
+                player.width, player.height                   // Destination Width, Height
+            );
         }
+
+        function updatePlayer() {
+            player.dy += player.gravity;
+            player.y += player.dy;
+            player.x += player.dx;
+
+            if (player.y + player.height > canvas.height) {
+                resetGame();
+            }
+
+            let onPlatform = false;
+
+            platforms.forEach(platform => {
+                if (player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y + player.height > platform.y &&
+                    player.y + player.height - player.dy < platform.y) {
+                    player.y = platform.y - player.height;
+                    player.dy = 0;
+                    player.jumps = 0;
+                    onPlatform = true;
+                }
+            });
+
+            player.grounded = onPlatform;
+
+            if (player.grounded && player.dx === 0) {
+                player.animation = "idle";
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowRight') {
+                player.dx = player.speed;
+                player.animation = "run";
+            }
+            if (e.code === 'ArrowLeft') {
+                player.dx = -player.speed;
+                player.animation = "run";
+            }
+            if (e.code === 'Space' && player.jumps < player.maxJumps) {
+                player.dy = player.jumpPower;
+                player.jumps++;
+                player.animation = "jump";
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+                player.dx = 0;
+                if (player.grounded) {
+                    player.animation = "idle";
+                }
+            }
+        });
 
         function drawPlatforms() {
             ctx.fillStyle = 'green';
@@ -71,129 +157,6 @@
             });
         }
 
-        function updatePlayer() {
-            player.dy += player.gravity;
-            player.y += player.dy;
-            player.x += player.dx;
-
-            if (player.y + player.height > canvas.height) {
-                resetGame();
-            }
-
-            platforms.forEach(platform => {
-                if (player.x < platform.x + platform.width &&
-                    player.x + player.width > platform.x &&
-                    player.y < platform.y + platform.height &&
-                    player.y + player.height > platform.y) {
-                    player.y = platform.y - player.height;
-                    player.dy = 0;
-                    player.jumps = 0;
-                }
-            });
-
-            coins.forEach((coin, index) => {
-                if (player.x < coin.x + coin.width &&
-                    player.x + player.width > coin.x &&
-                    player.y < coin.y + coin.height &&
-                    player.y + player.height > coin.y) {
-                    coins.splice(index, 1);
-                    player.score += 10;
-                    player.jumps = 0; // Recharge double jump
-                }
-            });
-        }
-
-        function updatePlatformsAndCoins() {
-            platforms.forEach(platform => {
-                platform.x -= player.speed;
-                if (platform.x + platform.width < 0) {
-                    platforms.splice(platforms.indexOf(platform), 1);
-                    generatePlatform();
-                }
-            });
-
-            coins.forEach(coin => {
-                coin.x -= player.speed;
-                if (coin.x + coin.width < 0) {
-                    coins.splice(coins.indexOf(coin), 1);
-                }
-            });
-        }
-
-        function generatePlatform() {
-            const platformWidth = 200;
-            const platformHeight = 20;
-            const platformX = canvas.width;
-            const platformY = canvas.height - Math.random() * 300 - platformHeight;
-
-            // Create a gap with a 30% chance
-            if (Math.random() < 0.3) {
-                platforms.push({ x: platformX + platformWidth + 100, y: platformY, width: platformWidth, height: platformHeight });
-            } else {
-                platforms.push({ x: platformX, y: platformY, width: platformWidth, height: platformHeight });
-            }
-
-            // Generate a coin on the platform
-            if (Math.random() < 0.8) { // 80% chance to generate a coin on the platform
-                const coinWidth = 20;
-                const coinHeight = 20;
-                const coinX = platformX + platformWidth / 2 - coinWidth / 2;
-                const coinY = platformY - coinHeight;
-                coins.push({ x: coinX, y: coinY, width: coinWidth, height: coinHeight });
-            }
-
-            // Generate a hard-to-reach coin
-            if (Math.random() < 0.3) { // 30% chance to generate a hard-to-reach coin
-                const coinWidth = 20;
-                const coinHeight = 20;
-                const coinX = platformX + platformWidth / 2 - coinWidth / 2;
-                const coinY = platformY - coinHeight - 100; // Higher position
-                coins.push({ x: coinX, y: coinY, width: coinWidth, height: coinHeight });
-            }
-        }
-
-        function jump() {
-            if (player.jumps < player.maxJumps) {
-                player.dy = player.jumpPower;
-                player.jumps++;
-            }
-        }
-
-        function resetGame() {
-            player.x = 50;
-            player.y = canvas.height - 150;
-            player.dy = 0;
-            player.dx = 0;
-            player.jumps = 0;
-            player.score = 0;
-            platforms.length = 0;
-            coins.length = 0;
-            platforms.push({ x: 100, y: canvas.height - 100, width: 200, height: 20 });
-            platforms.push({ x: 400, y: canvas.height - 200, width: 200, height: 20 });
-            platforms.push({ x: 700, y: canvas.height - 300, width: 200, height: 20 });
-            coins.push({ x: 150, y: canvas.height - 150, width: 20, height: 20 });
-            coins.push({ x: 450, y: canvas.height - 250, width: 20, height: 20 });
-            coins.push({ x: 750, y: canvas.height - 350, width: 20, height: 20 });
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                jump();
-            }
-            if (e.code === 'ArrowRight') {
-                player.dx = player.speed;
-            }
-            if (e.code === 'ArrowLeft') {
-                player.dx = -player.speed;
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
-                player.dx = 0;
-            }
-        });
-
         function drawScore() {
             ctx.fillStyle = 'black';
             ctx.font = '20px Arial';
@@ -202,16 +165,17 @@
 
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawPlayer();
             drawPlatforms();
             drawCoins();
-            drawScore();
             updatePlayer();
-            updatePlatformsAndCoins();
+            drawPlayer();
+            drawScore();
             requestAnimationFrame(gameLoop);
         }
 
-        gameLoop();
+        spriteSheet.onload = () => {
+            gameLoop(); // Start the game loop after loading sprite
+        };
     </script>
 </body>
 </html>
